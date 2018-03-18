@@ -34,7 +34,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -51,10 +50,9 @@ var (
 	msgIDBugsAddress = flag.String("msgid-bugs-address", "EMAIL", "set report address for msgid bugs.")
 	packageName      = flag.String("package-name", "", "Set package name in output.")
 
-	keyword                 = flag.String("keyword", "gettext.Gettext", "Look for WORD as the keyword for singular strings.")
-	keywordPlural           = flag.String("keyword-plural", "gettext.NGettext", "Look for WORD as the keyword for plural strings.")
-	keywordContextual       = flag.String("keyword-contextual", "gettext.CGettext", "Look for WORD as the keyword for contextual strings.")
-	keywordPluralContextual = flag.String("keyword-plural-contextual", "gettext.CNGettext", "Look for WORD as the keyword for plural contextual strings.")
+	keyword           = flag.String("keyword", "gettext.Gettext", "Look for WORD as the keyword for singular strings.")
+	keywordPlural     = flag.String("keyword-plural", "gettext.NGettext", "Look for WORD as the keyword for plural strings.")
+	keywordContextual = flag.String("keyword-contextual", "gettext.CGettext", "Look for WORD as the keyword for contextual strings.")
 
 	skipArgs = flag.Int("skip-args", 0, "Number of arguments to skip in gettext function call before considering a text message argument.")
 
@@ -76,18 +74,31 @@ type keywordDef struct {
 
 type keywords map[string]*keywordDef
 
-type allKeywordsConfig []*keywordDef
+type msgKey struct {
+	msgctxt string
+	msgtext string
+}
 
-type msgID struct {
+type msgData struct {
 	msgidPlural string
-	msgctxt     string
 	comment     string
 	fname       string
 	line        int
 	formatHint  string
 }
 
-var msgIDs map[string][]msgID
+type msgKeyList []msgKey
+
+func (l msgKeyList) Len() int { return len(l) }
+func (l msgKeyList) Less(i, j int) bool {
+	if l[i].msgctxt != l[j].msgctxt {
+		return l[i].msgctxt < l[j].msgctxt
+	}
+	return l[i].msgtext < l[j].msgtext
+}
+func (l msgKeyList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+var msgIDs map[msgKey][]msgData
 
 func formatComment(com string) string {
 	out := ""
@@ -132,28 +143,28 @@ func findCommentsForTranslation(fset *token.FileSet, f *ast.File, posCall token.
 }
 
 func constructValue(val interface{}) (string, error) {
-	switch val.(type) {
+	switch val := val.(type) {
 	case *ast.BasicLit:
-		return val.(*ast.BasicLit).Value, nil
+		return val.Value, nil
 	// this happens for constructs like:
 	//  gettext.Gettext("foo" + "bar")
 	case *ast.BinaryExpr:
 		// we only support string concat
-		if val.(*ast.BinaryExpr).Op != token.ADD {
+		if val.Op != token.ADD {
 			return "", nil
 		}
-		left, err := constructValue(val.(*ast.BinaryExpr).X)
+		left, err := constructValue(val.X)
 		if err != nil {
 			return "", err
 		}
 		// strip right " (or `)
 		left = left[0 : len(left)-1]
-		right, err := constructValue(val.(*ast.BinaryExpr).Y)
+		right, err := constructValue(val.Y)
 		if err != nil {
 			return "", err
 		}
 		// strip left " (or `)
-		right = right[1:len(right)]
+		right = right[1:]
 		return left + right, nil
 	default:
 		return "", fmt.Errorf("unknown type: %v", val)
@@ -230,12 +241,15 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 			formatHint = "c-format"
 		}
 
-		msgidStr := formatI18nStr(i18nStr)
+		i18nCtxt = formatI18nStr(i18nCtxt)
+		i18nStr = formatI18nStr(i18nStr)
+		i18nStrPlural = formatI18nStr(i18nStrPlural)
+
 		posCall := fset.Position(n.Pos())
-		msgIDs[msgidStr] = append(msgIDs[msgidStr], msgID{
+		k := msgKey{i18nCtxt, i18nStr}
+		msgIDs[k] = append(msgIDs[k], msgData{
 			formatHint:  formatHint,
-			msgidPlural: formatI18nStr(i18nStrPlural),
-			msgctxt:     formatI18nStr(i18nCtxt),
+			msgidPlural: i18nStrPlural,
 			fname:       posCall.Filename,
 			line:        posCall.Line,
 			comment:     findCommentsForTranslation(fset, f, posCall),
@@ -263,7 +277,7 @@ func formatI18nStr(s string) string {
 
 func processFiles(args []string) error {
 	// go over the input files
-	msgIDs = make(map[string][]msgID)
+	msgIDs = make(map[msgKey][]msgData)
 
 	fset := token.NewFileSet()
 	for _, fname := range args {
@@ -278,7 +292,7 @@ func processFiles(args []string) error {
 func parseKeywords() (keywords, error) {
 	k := make(keywords)
 	if *keywordCfg != "" {
-		data, err := ioutil.ReadFile(*keywordCfg)
+		data, err := os.ReadFile(*keywordCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -310,7 +324,7 @@ func parseKeywords() (keywords, error) {
 }
 
 func processSingleGoSource(fset *token.FileSet, fname string) error {
-	fnameContent, err := ioutil.ReadFile(fname)
+	fnameContent, err := os.ReadFile(fname)
 	if err != nil {
 		panic(err)
 	}
@@ -361,30 +375,30 @@ msgstr  "Project-Id-Version: %s\n"
 	fmt.Fprintf(out, "%s", header)
 
 	// yes, this is the way to do it in go
-	sortedKeys := []string{}
+	var sortedKeys msgKeyList
 	for k := range msgIDs {
 		sortedKeys = append(sortedKeys, k)
 	}
 	if *sortOutput {
-		sort.Strings(sortedKeys)
+		sort.Sort(sortedKeys)
 	}
 
 	// FIXME: use template here?
-	for _, k := range sortedKeys {
-		msgidList := msgIDs[k]
-		for _, msgid := range msgidList {
+	for _, key := range sortedKeys {
+		msgList := msgIDs[key]
+		for _, msgid := range msgList {
 			if *addComments || *addCommentsTag != "" {
 				fmt.Fprintf(out, "%s", msgid.comment)
 			}
 		}
 		if !*noLocation {
 			fmt.Fprintf(out, "#:")
-			for _, msgid := range msgidList {
+			for _, msgid := range msgList {
 				fmt.Fprintf(out, " %s:%d", msgid.fname, msgid.line)
 			}
 			fmt.Fprintf(out, "\n")
 		}
-		msgid := msgidList[0]
+		msgid := msgList[0]
 		if msgid.formatHint != "" {
 			fmt.Fprintf(out, "#, %s\n", msgid.formatHint)
 		}
@@ -395,10 +409,10 @@ msgstr  "Project-Id-Version: %s\n"
 			// cleanup too aggressive splitting (empty "" lines)
 			return strings.TrimSuffix(out, "\"\n        \"")
 		}
-		if msgid.msgctxt != "" {
-			fmt.Fprintf(out, "msgctxt \"%v\"\n", formatOutput(msgid.msgctxt))
+		if key.msgctxt != "" {
+			fmt.Fprintf(out, "msgctxt \"%v\"\n", formatOutput(key.msgctxt))
 		}
-		fmt.Fprintf(out, "msgid   \"%v\"\n", formatOutput(k))
+		fmt.Fprintf(out, "msgid   \"%v\"\n", formatOutput(key.msgtext))
 		if msgid.msgidPlural != "" {
 			fmt.Fprintf(out, "msgid_plural   \"%v\"\n", formatOutput(msgid.msgidPlural))
 			fmt.Fprintf(out, "msgstr[0]  \"\"\n")
@@ -408,7 +422,6 @@ msgstr  "Project-Id-Version: %s\n"
 		}
 		fmt.Fprintf(out, "\n")
 	}
-
 }
 
 func main() {

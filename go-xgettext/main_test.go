@@ -29,7 +29,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,7 +47,7 @@ var _ = Suite(&xgettextTestSuite{})
 // test helper
 func makeGoSourceFile(c *C, content []byte) string {
 	fname := filepath.Join(c.MkDir(), "foo.go")
-	err := ioutil.WriteFile(fname, []byte(content), 0644)
+	err := os.WriteFile(fname, []byte(content), 0644)
 	c.Assert(err, IsNil)
 
 	return fname
@@ -98,8 +97,8 @@ func main() {
 	err := processFiles([]string{fname})
 	c.Assert(err, IsNil)
 
-	c.Assert(msgIDs, DeepEquals, map[string][]msgID{
-		"foo": []msgID{
+	c.Assert(msgIDs, DeepEquals, map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				comment: "#. TRANSLATORS: foo comment\n",
 				fname:   fname,
@@ -123,8 +122,8 @@ func main() {
 	err := processFiles([]string{fname})
 	c.Assert(err, IsNil)
 
-	c.Assert(msgIDs, DeepEquals, map[string][]msgID{
-		"foo": []msgID{
+	c.Assert(msgIDs, DeepEquals, map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				comment: "#. TRANSLATORS: foo comment\n",
 				fname:   fname,
@@ -159,8 +158,8 @@ msgstr  "Project-Id-Version: snappy\n"
 `
 
 func (s *xgettextTestSuite) TestWriteOutputSimple(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				fname:   "fname",
 				line:    2,
@@ -182,8 +181,8 @@ msgstr  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputMultiple(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				fname:   "fname",
 				line:    2,
@@ -211,8 +210,8 @@ msgstr  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputNoComment(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				fname: "fname",
 				line:  2,
@@ -232,8 +231,8 @@ msgstr  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputNoLocation(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				fname: "fname",
 				line:  2,
@@ -254,8 +253,8 @@ msgstr  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputFormatHint(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				fname:      "fname",
 				line:       2,
@@ -278,8 +277,8 @@ msgstr  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputPlural(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo"}: {
 			{
 				msgidPlural: "plural",
 				fname:       "fname",
@@ -303,14 +302,14 @@ msgstr[1]  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputSorted(c *C) {
-	msgIDs = map[string][]msgID{
-		"aaa": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "aaa"}: {
 			{
 				fname: "fname",
 				line:  2,
 			},
 		},
-		"zzz": []msgID{
+		{"", "zzz"}: {
 			{
 				fname: "fname",
 				line:  2,
@@ -370,7 +369,7 @@ func main() {
 	main()
 
 	// verify its what we expect
-	got, err := ioutil.ReadFile(outName)
+	got, err := os.ReadFile(outName)
 	c.Assert(err, IsNil)
 	expected := fmt.Sprintf(`%s
 #: %[2]s:9
@@ -410,8 +409,8 @@ func main() {
 	err := processFiles([]string{fname})
 	c.Assert(err, IsNil)
 
-	c.Assert(msgIDs, DeepEquals, map[string][]msgID{
-		"foo\\nbar\\nbaz": []msgID{
+	c.Assert(msgIDs, DeepEquals, map[msgKey][]msgData{
+		{"", "foo\\nbar\\nbaz"}: {
 			{
 				comment: "#. TRANSLATORS: foo comment\n",
 				fname:   fname,
@@ -445,8 +444,8 @@ msgstr  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputMultilines(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo\\nbar\\nbaz": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo\\nbar\\nbaz"}: {
 			{
 				fname:   "fname",
 				line:    2,
@@ -469,14 +468,14 @@ msgstr  ""
 }
 
 func (s *xgettextTestSuite) TestWriteOutputTidy(c *C) {
-	msgIDs = map[string][]msgID{
-		"foo\\nbar\\nbaz": []msgID{
+	msgIDs = map[msgKey][]msgData{
+		{"", "foo\\nbar\\nbaz"}: {
 			{
 				fname: "fname",
 				line:  2,
 			},
 		},
-		"zzz\\n": []msgID{
+		{"", "zzz\\n"}: {
 			{
 				fname: "fname",
 				line:  4,
