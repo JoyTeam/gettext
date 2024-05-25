@@ -49,6 +49,7 @@ var (
 	noLocation       = flag.Bool("no-location", false, "Do not write '#: filename:line' lines.")
 	msgIDBugsAddress = flag.String("msgid-bugs-address", "EMAIL", "set report address for msgid bugs.")
 	packageName      = flag.String("package-name", "", "Set package name in output.")
+	deterministic    = flag.Bool("deterministic", false, "Generate deterministic output (e.g. no timestamps)")
 
 	keyword           = flag.String("keyword", "gettext.Gettext", "Look for WORD as the keyword for singular strings.")
 	keywordPlural     = flag.String("keyword-plural", "gettext.NGettext", "Look for WORD as the keyword for plural strings.")
@@ -363,12 +364,8 @@ msgid   ""
 msgstr  "Project-Id-Version: %s\n"
         "Report-Msgid-Bugs-To: %s\n"
         "POT-Creation-Date: %s\n"
-        "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-        "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-        "Language-Team: LANGUAGE <LL@li.org>\n"
-        "Language: \n"
         "MIME-Version: 1.0\n"
-        "Content-Type: text/plain; charset=CHARSET\n"
+        "Content-Type: text/plain; charset=utf-8\n"
         "Content-Transfer-Encoding: 8bit\n"
 
 `, *packageName, *msgIDBugsAddress, formatTime())
@@ -432,6 +429,12 @@ func main() {
 		fmt.Println("Options:")
 		flag.PrintDefaults()
 		os.Exit(0)
+	}
+	if *deterministic {
+		*sortOutput = true
+		formatTime = func() string {
+			return "1970-01-01 00:00+0000"
+		}
 	}
 
 	if err := processFiles(args); err != nil {
