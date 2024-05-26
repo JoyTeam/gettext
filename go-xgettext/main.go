@@ -203,6 +203,10 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 			idx := keyword.SkipArgs
 			formatHint = keyword.FormatHint
 			for i := 0; i < keyword.FormatHintArgs; i++ {
+				if idx >= len(x.Args) {
+					err = fmt.Errorf("not enough arguments")
+					break
+				}
 				var argVal string
 				argVal, err = constructValue(x.Args[idx])
 				if err != nil {
@@ -211,31 +215,47 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 				formatHint = fmt.Sprintf("%s,%s", formatHint, argVal)
 				idx++
 			}
-			switch keyword.Type {
-			case kTypeSingular:
-				i18nStr, err = constructValue(x.Args[idx])
-			case kTypePlural:
-				i18nStr, err = constructValue(x.Args[idx])
-				if err != nil {
-					break
+			if idx >= len(x.Args) {
+				err = fmt.Errorf("not enough arguments")
+			} else {
+				switch keyword.Type {
+				case kTypeSingular:
+					i18nStr, err = constructValue(x.Args[idx])
+				case kTypePlural:
+					if idx+1 >= len(x.Args) {
+						err = fmt.Errorf("not enough arguments")
+						break
+					}
+					i18nStr, err = constructValue(x.Args[idx])
+					if err != nil {
+						break
+					}
+					i18nStrPlural, err = constructValue(x.Args[idx+1])
+				case kTypeContextual:
+					if idx+1 >= len(x.Args) {
+						err = fmt.Errorf("not enough arguments")
+						break
+					}
+					i18nCtxt, err = constructValue(x.Args[idx])
+					if err != nil {
+						break
+					}
+					i18nStr, err = constructValue(x.Args[idx+1])
+				case kTypePluralContextual:
+					if idx+2 >= len(x.Args) {
+						err = fmt.Errorf("not enough arguments")
+						break
+					}
+					i18nCtxt, err = constructValue(x.Args[idx])
+					if err != nil {
+						break
+					}
+					i18nStr, err = constructValue(x.Args[idx+1])
+					if err != nil {
+						break
+					}
+					i18nStrPlural, err = constructValue(x.Args[idx+2])
 				}
-				i18nStrPlural, err = constructValue(x.Args[idx+1])
-			case kTypeContextual:
-				i18nCtxt, err = constructValue(x.Args[idx])
-				if err != nil {
-					break
-				}
-				i18nStr, err = constructValue(x.Args[idx+1])
-			case kTypePluralContextual:
-				i18nCtxt, err = constructValue(x.Args[idx])
-				if err != nil {
-					break
-				}
-				i18nStr, err = constructValue(x.Args[idx+1])
-				if err != nil {
-					break
-				}
-				i18nStrPlural, err = constructValue(x.Args[idx+2])
 			}
 		}
 		if err != nil {
