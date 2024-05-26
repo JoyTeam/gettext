@@ -212,6 +212,8 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 				if err != nil {
 					break
 				}
+				// strip leading and trailing " (or `)
+				argVal = argVal[1 : len(argVal)-1]
 				formatHint = fmt.Sprintf("%s,%s", formatHint, argVal)
 				idx++
 			}
