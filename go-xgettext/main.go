@@ -68,10 +68,11 @@ const (
 )
 
 type keywordDef struct {
-	Type       string `json:"type"`
-	Name       string `json:"name"`
-	SkipArgs   int    `json:"skipArgs"`
-	FormatHint string `json:"formatHint"`
+	Type           string `json:"type"`
+	Name           string `json:"name"`
+	SkipArgs       int    `json:"skipArgs"`
+	FormatHint     string `json:"formatHint"`
+	FormatHintArgs int    `json:"formatHintArgs"`
 }
 
 type keywords map[string]*keywordDef
@@ -200,6 +201,16 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 		}
 		if keyword, ok := k[name]; ok {
 			idx := keyword.SkipArgs
+			formatHint = keyword.FormatHint
+			for i := 0; i < keyword.FormatHintArgs; i++ {
+				var argVal string
+				argVal, err = constructValue(x.Args[idx])
+				if err != nil {
+					break
+				}
+				formatHint = fmt.Sprintf("%s,%s", formatHint, argVal)
+				idx++
+			}
 			switch keyword.Type {
 			case kTypeSingular:
 				i18nStr, err = constructValue(x.Args[idx])
@@ -226,7 +237,6 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 				}
 				i18nStrPlural, err = constructValue(x.Args[idx+2])
 			}
-			formatHint = keyword.FormatHint
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "WARN: Unable to obtain value at %s: %v\n", fset.Position(n.Pos()), err)
