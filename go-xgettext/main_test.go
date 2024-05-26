@@ -148,12 +148,8 @@ msgid   ""
 msgstr  "Project-Id-Version: snappy\n"
         "Report-Msgid-Bugs-To: snappy-devel@lists.ubuntu.com\n"
         "POT-Creation-Date: 2015-06-30 14:48+0200\n"
-        "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-        "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-        "Language-Team: LANGUAGE <LL@li.org>\n"
-        "Language: \n"
         "MIME-Version: 1.0\n"
-        "Content-Type: text/plain; charset=CHARSET\n"
+        "Content-Type: text/plain; charset=utf-8\n"
         "Content-Transfer-Encoding: 8bit\n"
 `
 
@@ -390,7 +386,6 @@ msgstr[0]  ""
 msgstr[1]  ""
 
 #: %[2]s:14
-#, c-format
 msgid   "zz %%s"
 msgstr  ""
 

@@ -68,9 +68,10 @@ const (
 )
 
 type keywordDef struct {
-	Type     string `json:"type"`
-	Name     string `json:"name"`
-	SkipArgs int    `json:"skipArgs"`
+	Type       string `json:"type"`
+	Name       string `json:"name"`
+	SkipArgs   int    `json:"skipArgs"`
+	FormatHint string `json:"formatHint"`
 }
 
 type keywords map[string]*keywordDef
@@ -191,7 +192,7 @@ func parseFunExpr(path string, expr ast.Expr) string {
 func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n ast.Node) bool {
 	switch x := n.(type) {
 	case *ast.CallExpr:
-		var i18nStr, i18nStrPlural, i18nCtxt string
+		var i18nStr, i18nStrPlural, i18nCtxt, formatHint string
 		var err error
 		name := parseFunExpr("", x.Fun)
 		if name == "" {
@@ -225,6 +226,7 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 				}
 				i18nStrPlural, err = constructValue(x.Args[idx+2])
 			}
+			formatHint = keyword.FormatHint
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "WARN: Unable to obtain value at %s: %v\n", fset.Position(n.Pos()), err)
@@ -233,13 +235,6 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 
 		if i18nStr == "" {
 			break
-		}
-
-		// FIXME: too simplistic(?), no %% is considered
-		formatHint := ""
-		if strings.Contains(i18nStr, "%") || strings.Contains(i18nStrPlural, "%") {
-			// well, not quite correct but close enough
-			formatHint = "c-format"
 		}
 
 		i18nCtxt = formatI18nStr(i18nCtxt)
