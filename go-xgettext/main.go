@@ -73,6 +73,7 @@ type keywordDef struct {
 	SkipArgs       int    `json:"skipArgs"`
 	FormatHint     string `json:"formatHint"`
 	FormatHintArgs int    `json:"formatHintArgs"`
+	ForceContext   string `json:"forceContext"`
 }
 
 type keywords map[string]*keywordDef
@@ -222,8 +223,10 @@ func inspectNodeForTranslations(k keywords, fset *token.FileSet, f *ast.File, n 
 			} else {
 				switch keyword.Type {
 				case kTypeSingular:
+					i18nCtxt = fmt.Sprintf("%q", keyword.ForceContext)
 					i18nStr, err = constructValue(x.Args[idx])
 				case kTypePlural:
+					i18nCtxt = fmt.Sprintf("%q", keyword.ForceContext)
 					if idx+1 >= len(x.Args) {
 						err = fmt.Errorf("not enough arguments")
 						break
